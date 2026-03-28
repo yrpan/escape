@@ -110,6 +110,7 @@
       font-weight: bold;
       display: inline-block;
       margin-top: 12px;
+      margin-bottom: 16px;
     }
     h2 {
       margin: 5px 0 0 0;
@@ -131,6 +132,58 @@
       justify-content: center;
       gap: 10px;
       flex-wrap: wrap;
+      margin: 16px 0 8px;
+    }
+
+    /* Virtual D-pad */
+    .virtual-pad {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0 10px;
+    }
+    .dpad {
+      display: grid;
+      grid-template-columns: 70px 70px 70px;
+      grid-template-rows: auto;
+      gap: 8px;
+      background: rgba(0,0,0,0.5);
+      padding: 12px;
+      border-radius: 60px;
+      backdrop-filter: blur(4px);
+    }
+    .dpad-btn {
+      background: #2c3e66;
+      border: none;
+      color: white;
+      font-size: 32px;
+      font-weight: bold;
+      text-align: center;
+      padding: 12px 0;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: 0.1s;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      touch-action: manipulation;
+    }
+    .dpad-btn:active {
+      transform: scale(0.92);
+      background: #1e2a4a;
+    }
+    .dpad-up {
+      grid-column: 2 / 3;
+      grid-row: 1;
+    }
+    .dpad-left {
+      grid-column: 1 / 2;
+      grid-row: 2;
+    }
+    .dpad-down {
+      grid-column: 2 / 3;
+      grid-row: 2;
+    }
+    .dpad-right {
+      grid-column: 3 / 4;
+      grid-row: 2;
     }
     @media (max-width: 600px) {
       .ctrl-card {
@@ -150,29 +203,53 @@
       .status {
         font-size: 12px;
       }
+      .dpad {
+        grid-template-columns: 60px 60px 60px;
+        gap: 6px;
+      }
+      .dpad-btn {
+        font-size: 28px;
+        padding: 8px 0;
+      }
     }
   </style>
 </head>
 <body>
 <div class="game-container">
-  <h2>ESCAPE FROM DIDDY EPSTEIN</h2>
+  <h2>⚡ ESCAPE FROM DIDDY EPSTEIN ⚡</h2>
+  <div id="gameStatus" class="status">✨ PRESS START WHEN READY ✨</div>
+
   <div class="canvas-wrapper">
     <canvas id="game" width="800" height="800"></canvas>
   </div>
+
+  <!-- Virtual D-pad for mobile (Player 2) -->
+  <div class="virtual-pad">
+    <div class="dpad">
+      <div class="dpad-btn dpad-up" data-dx="0" data-dy="-1">⬆️</div>
+      <div class="dpad-btn dpad-left" data-dx="-1" data-dy="0">⬅️</div>
+      <div class="dpad-btn dpad-down" data-dx="0" data-dy="1">⬇️</div>
+      <div class="dpad-btn dpad-right" data-dx="1" data-dy="0">➡️</div>
+    </div>
+  </div>
+
+  <!-- Action buttons -->
+  <div class="button-group">
+    <button onclick="startGame()">▶ START GAME</button>
+    <button onclick="restartGame()">🔄 RESTART</button>
+    <button id="fullscreenBtn">🖥️ FULLSCREEN</button>
+    <button id="muteBtn">🔊 MUTE</button>
+  </div>
+
+  <!-- Key instructions (player controls) -->
   <div class="controls-panel">
     <div class="ctrl-card"><div class="ctrl-color" style="background:#00ffff;"></div><span class="ctrl-keys">W A S D</span><span>P1</span></div>
     <div class="ctrl-card"><div class="ctrl-color" style="background:#ffff44;"></div><span class="ctrl-keys">⬆️ ⬇️ ⬅️ ➡️</span><span>P2</span></div>
     <div class="ctrl-card"><div class="ctrl-color" style="background:#ff66cc;"></div><span class="ctrl-keys">I K J L</span><span>P3</span></div>
     <div class="ctrl-card"><div class="ctrl-color" style="background:#66ff99;"></div><span class="ctrl-keys">Y N H M</span><span>P4</span></div>
   </div>
-  <div class="button-group">
-    <button onclick="startGame()">▶ START GAME</button>
-    <button onclick="restartGame()">🔄 RESTART</button>
-    <button id="fullscreenBtn">FULLSCREEN MODE</button>
-    <button id="muteBtn">🔊 TURN OFF THE MUSIC</button>
-  </div>
-  <div id="gameStatus" class="status">When Ready, Press Start</div>
-  <div class="note">Satirical Game by Y.R. Pan</div>
+
+  <div class="note">A satirical game by Y.R. Pan</div>
 </div>
 
 <script>
@@ -209,11 +286,15 @@
   minotaurImg1.src = "image/diddy.png";
   minotaurImg2.src = "image/epstein.png";
   
+  let exitImg = new Image();
+  exitImg.src = "image/exit.png";
+  
   let imagesLoaded = false;
-  let img1Loaded = false, img2Loaded = false;
+  let img1Loaded = false, img2Loaded = false, exitLoaded = false;
   minotaurImg1.onload = () => { img1Loaded = true; updateImagesReady(); };
   minotaurImg2.onload = () => { img2Loaded = true; updateImagesReady(); };
-  function updateImagesReady() { imagesLoaded = img1Loaded && img2Loaded; }
+  exitImg.onload = () => { exitLoaded = true; updateImagesReady(); };
+  function updateImagesReady() { imagesLoaded = img1Loaded && img2Loaded && exitLoaded; }
   
   function playSound(audioObj) {
     if (!audioObj) return;
@@ -225,30 +306,21 @@
     const idx = Math.floor(Math.random() * captureSounds.length);
     playSound(captureSounds[idx]);
   }
-
-  // Function to start background music (if not already playing)
-  function startBackgroundMusic() {
-    if (!bgMusic.paused) return;
-    bgMusic.play().catch(e => console.warn("Background music play failed:", e));
-  }
   
-  // Stop background music (optional, but can be used)
-  function stopBackgroundMusic() {
-    if (!bgMusic.paused) {
-      bgMusic.pause();
-      bgMusic.currentTime = 0;
+  function startBackgroundMusic() {
+    if (!bgMuted && bgMusic.paused) {
+      bgMusic.play().catch(e => console.warn("Background music play failed:", e));
     }
   }
   
-  // Restart background music (e.g., on restart)
-  function restartBackgroundMusic() {
-    stopBackgroundMusic();
-    startBackgroundMusic();
+  function stopBackgroundMusic() {
+    if (!bgMusic.paused) bgMusic.pause();
+    bgMusic.currentTime = 0;
   }
-
-  // ---------- MAZE GENERATION (guaranteed connectivity) ----------
-  function generateMazeWithConnectivity() {
-    const maxAttempts = 25;
+  
+  // ---------- MAZE GENERATION with RANDOM EXIT ----------
+  function generateMazeWithRandomExit() {
+    const maxAttempts = 30;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const maze = Array(ROWS).fill().map(() => Array(COLS).fill(0));
       for (let y = 0; y < ROWS; y++) {
@@ -264,16 +336,32 @@
         { x: 1, y: ROWS-2 },
         { x: COLS-3, y: ROWS-2 }
       ];
-      const exitTile = { x: COLS-2, y: ROWS-2 };
       
-      maze[exitTile.y][exitTile.x] = 0;
       for (let pos of startPositions) {
-        if (pos.y >= 0 && pos.y < ROWS && pos.x >= 0 && pos.x < COLS) maze[pos.y][pos.x] = 0;
+        if (maze[pos.y] && maze[pos.y][pos.x] === 1) maze[pos.y][pos.x] = 0;
       }
       
+      const walkable = [];
+      for (let y = 1; y < ROWS-1; y++) {
+        for (let x = 1; x < COLS-1; x++) {
+          if (maze[y][x] === 0) {
+            let isStart = false;
+            for (let sp of startPositions) {
+              if (sp.x === x && sp.y === y) { isStart = true; break; }
+            }
+            if (!isStart) walkable.push({ x, y });
+          }
+        }
+      }
+      if (walkable.length === 0) continue;
+      
+      const exitIdx = Math.floor(Math.random() * walkable.length);
+      const exitPos = walkable[exitIdx];
+      maze[exitPos.y][exitPos.x] = 0;
+      
       const visited = Array(ROWS).fill().map(() => Array(COLS).fill(false));
-      const queue = [{ x: exitTile.x, y: exitTile.y }];
-      visited[exitTile.y][exitTile.x] = true;
+      const queue = [{ x: exitPos.x, y: exitPos.y }];
+      visited[exitPos.y][exitPos.x] = true;
       while (queue.length) {
         const { x, y } = queue.shift();
         const dirs = [[0,1],[1,0],[0,-1],[-1,0]];
@@ -288,13 +376,15 @@
       }
       
       let allReachable = true;
-      const checkPoints = [...startPositions, exitTile];
-      for (let p of checkPoints) {
+      for (let p of startPositions) {
         if (!visited[p.y][p.x]) { allReachable = false; break; }
       }
-      if (allReachable) return maze;
+      if (allReachable) {
+        return { maze, exitX: exitPos.x, exitY: exitPos.y };
+      }
     }
-    // fallback safe maze
+    
+    // Fallback: simple maze with random exit
     const fallbackMaze = Array(ROWS).fill().map(() => Array(COLS).fill(0));
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) {
@@ -304,26 +394,44 @@
         } else fallbackMaze[y][x] = 0;
       }
     }
-    fallbackMaze[1][1] = 0; fallbackMaze[1][COLS-2] = 0;
-    fallbackMaze[ROWS-2][1] = 0; fallbackMaze[ROWS-2][COLS-3] = 0;
-    fallbackMaze[ROWS-2][COLS-2] = 0;
-    return fallbackMaze;
+    const startPositionsFallback = [
+      { x: 1, y: 1 }, { x: COLS-2, y: 1 }, { x: 1, y: ROWS-2 }, { x: COLS-3, y: ROWS-2 }
+    ];
+    for (let p of startPositionsFallback) fallbackMaze[p.y][p.x] = 0;
+    const walkableFallback = [];
+    for (let y = 1; y < ROWS-1; y++) {
+      for (let x = 1; x < COLS-1; x++) {
+        if (fallbackMaze[y][x] === 0) {
+          let isStart = false;
+          for (let sp of startPositionsFallback) if (sp.x === x && sp.y === y) { isStart = true; break; }
+          if (!isStart) walkableFallback.push({ x, y });
+        }
+      }
+    }
+    const exitFallback = walkableFallback[Math.floor(Math.random() * walkableFallback.length)] || { x: COLS-2, y: ROWS-2 };
+    fallbackMaze[exitFallback.y][exitFallback.x] = 0;
+    return { maze: fallbackMaze, exitX: exitFallback.x, exitY: exitFallback.y };
   }
 
-  let maze = generateMazeWithConnectivity();
-  const exitPos = { x: COLS-2, y: ROWS-2 };
-
-  // ---------- PLAYER DEFINITIONS (4 players) ----------
+  let maze = [];
+  let exitPos = { x: COLS-2, y: ROWS-2 };
   let players = [];
   let minotaurs = [];
   let gameRunning = false;
   let frameCounter = 0;
   let endSoundTimeout = null;
-
-  // Countdown variables
   let countdownActive = false;
   let countdownSeconds = 0;
   let countdownInterval = null;
+  
+  // Minotaur stuck tracking
+  const STUCK_THRESHOLD_FRAMES = 11 * 60; // 11 seconds
+  const VISION_RADIUS = 7;
+  const DETECTION_THRESHOLD_FRAMES = 6; // 0.1s
+
+  // Speed intervals (frames per move) – matched to human tapping speed
+  const ROAM_INTERVAL = 15;   // 0.25 seconds per cell (4 taps/sec)
+  const CHASE_INTERVAL = 12;  // 0.2 seconds per cell (5 taps/sec)
 
   // key mapping
   const keyActions = {
@@ -357,7 +465,6 @@
     }
   }
 
-  // --- minotaur logic with pause on capture and 1-second detection
   function createMinotaur(x, y, id) {
     return {
       x, y, id,
@@ -365,9 +472,11 @@
       chaseTimer: 0,
       chasing: false,
       targetPlayer: null,
-      roamDir: { dx: 0, dy: 0 },
-      roamTimer: 0,
-      pauseEndTime: 0
+      moveCooldown: 0,
+      pauseEndTime: 0,
+      lastMoveFrame: 0,
+      lastX: x,
+      lastY: y
     };
   }
 
@@ -376,7 +485,6 @@
     const dx = player.x - mino.x;
     const dy = player.y - mino.y;
     if (dx === 0 && dy === 0) return true;
-    // Only cardinal or diagonal lines are checked
     if (!(dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy))) return false;
     const stepX = Math.sign(dx);
     const stepY = Math.sign(dy);
@@ -390,87 +498,173 @@
     return true;
   }
 
+  function isWithinVision(mino, player) {
+    const dx = Math.abs(player.x - mino.x);
+    const dy = Math.abs(player.y - mino.y);
+    const dist = Math.max(dx, dy);
+    return dist <= VISION_RADIUS;
+  }
+
+  function getRandomDirection() {
+    const dx = Math.floor(Math.random() * 3) - 1;
+    const dy = Math.floor(Math.random() * 3) - 1;
+    if (dx === 0 && dy === 0) return getRandomDirection();
+    return { dx, dy };
+  }
+
+  function moveTowards(targetX, targetY, fromX, fromY) {
+    const dx = Math.sign(targetX - fromX);
+    const dy = Math.sign(targetY - fromY);
+    if (dx !== 0 && dy !== 0 && maze[fromY + dy][fromX + dx] === 0) {
+      return { x: fromX + dx, y: fromY + dy, moved: true };
+    }
+    if (dx !== 0 && maze[fromY][fromX + dx] === 0) {
+      return { x: fromX + dx, y: fromY, moved: true };
+    }
+    if (dy !== 0 && maze[fromY + dy][fromX] === 0) {
+      return { x: fromX, y: fromY + dy, moved: true };
+    }
+    return { x: fromX, y: fromY, moved: false };
+  }
+
   function moveMinotaurs() {
     if (!gameRunning || countdownActive) return;
     const now = Date.now();
+    const currentFrame = frameCounter;
+    
     for (let m of minotaurs) {
-      if (m.pauseEndTime > now) continue;
-
-      let visiblePlayer = null;
-      for (let p of players) {
-        if (p.alive && !p.escaped && hasLineOfSight(m, p)) {
-          visiblePlayer = p;
-          break;
-        }
-      }
-      
-      if (visiblePlayer) {
-        m.seenTimer++;
-        // Detection threshold changed to 60 frames (~1 second at 60fps)
-        if (m.seenTimer > 60 && !m.chasing) {
-          m.chasing = true;
-          m.chaseTimer = 550; // remains ~9 seconds chase duration
-          m.targetPlayer = visiblePlayer;
-        }
-      } else {
-        m.seenTimer = Math.max(0, m.seenTimer - 2);
-        if (!visiblePlayer && m.chasing && m.targetPlayer && (m.targetPlayer.escaped || !m.targetPlayer.alive)) {
-          m.chasing = false;
-          m.targetPlayer = null;
-        }
-      }
-      if (m.chasing && (!m.targetPlayer || !m.targetPlayer.alive || m.targetPlayer.escaped)) {
-        m.chasing = false;
-        m.targetPlayer = null;
-        m.chaseTimer = 0;
-      }
-      if (m.chasing && m.targetPlayer) {
-        m.chaseTimer--;
-        if (m.chaseTimer <= 0) {
-          m.chasing = false;
-          m.targetPlayer = null;
-        }
-      }
-
-      // Roaming (only if not chasing)
-      if (!m.chasing) {
-        if (m.roamTimer <= 0) {
-          m.roamDir.dx = Math.floor(Math.random() * 3) - 1;
-          m.roamDir.dy = Math.floor(Math.random() * 3) - 1;
-          m.roamTimer = 100 + Math.floor(Math.random() * 51);
-        } else {
-          m.roamTimer--;
-          const nx = m.x + m.roamDir.dx;
-          const ny = m.y + m.roamDir.dy;
-          if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && maze[ny][nx] === 0) {
-            m.x = nx;
-            m.y = ny;
-          } else {
-            m.roamTimer = 0;
+      const isPaused = (m.pauseEndTime > now);
+      if (!isPaused) {
+        let visiblePlayer = null;
+        for (let p of players) {
+          if (p.alive && !p.escaped && isWithinVision(m, p) && hasLineOfSight(m, p)) {
+            visiblePlayer = p;
+            break;
           }
         }
-      }
-      
-      if (frameCounter % 34 !== 0) continue;
-      if (m.chasing && m.targetPlayer && m.targetPlayer.alive && !m.targetPlayer.escaped) {
-        const dx = Math.sign(m.targetPlayer.x - m.x);
-        const dy = Math.sign(m.targetPlayer.y - m.y);
-        if (dx !== 0 && dy !== 0) {
-          if (maze[m.y + dy] && maze[m.y + dy][m.x] === 0) m.y += dy;
-          else if (maze[m.y] && maze[m.y][m.x + dx] === 0) m.x += dx;
-        } else if (dx !== 0) {
-          if (maze[m.y] && maze[m.y][m.x + dx] === 0) m.x += dx;
-        } else if (dy !== 0) {
-          if (maze[m.y + dy] && maze[m.y + dy][m.x] === 0) m.y += dy;
+        
+        if (visiblePlayer) {
+          m.seenTimer++;
+          if (m.seenTimer > DETECTION_THRESHOLD_FRAMES && !m.chasing) {
+            m.chasing = true;
+            m.chaseTimer = 550;
+            m.targetPlayer = visiblePlayer;
+          }
+        } else {
+          m.seenTimer = Math.max(0, m.seenTimer - 2);
+          if (!visiblePlayer && m.chasing && m.targetPlayer && (m.targetPlayer.escaped || !m.targetPlayer.alive)) {
+            m.chasing = false;
+            m.targetPlayer = null;
+          }
         }
+        if (m.chasing && (!m.targetPlayer || !m.targetPlayer.alive || m.targetPlayer.escaped)) {
+          m.chasing = false;
+          m.targetPlayer = null;
+          m.chaseTimer = 0;
+        }
+        if (m.chasing && m.targetPlayer) {
+          m.chaseTimer--;
+          if (m.chaseTimer <= 0) {
+            m.chasing = false;
+            m.targetPlayer = null;
+          }
+        }
+        
+        if (m.moveCooldown <= 0) {
+          const interval = m.chasing ? CHASE_INTERVAL : ROAM_INTERVAL;
+          let moved = false;
+          
+          if (m.chasing && m.targetPlayer && m.targetPlayer.alive && !m.targetPlayer.escaped) {
+            const move = moveTowards(m.targetPlayer.x, m.targetPlayer.y, m.x, m.y);
+            if (move.moved) {
+              m.x = move.x;
+              m.y = move.y;
+              moved = true;
+            }
+          } else {
+            const dir = getRandomDirection();
+            const nx = m.x + dir.dx;
+            const ny = m.y + dir.dy;
+            if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && maze[ny][nx] === 0) {
+              m.x = nx;
+              m.y = ny;
+              moved = true;
+            }
+          }
+          
+          if (moved) {
+            m.lastMoveFrame = currentFrame;
+            m.lastX = m.x;
+            m.lastY = m.y;
+          }
+          m.moveCooldown = interval;
+        } else {
+          m.moveCooldown--;
+        }
+        
+        if (m.lastMoveFrame === 0) {
+          m.lastMoveFrame = currentFrame;
+          m.lastX = m.x;
+          m.lastY = m.y;
+        }
+        
+        const framesSinceLastMove = currentFrame - m.lastMoveFrame;
+        if (framesSinceLastMove > STUCK_THRESHOLD_FRAMES) {
+          const newPos = getRandomAdjacentWalkable(m.x, m.y);
+          if (newPos) {
+            m.x = newPos.x;
+            m.y = newPos.y;
+            m.lastMoveFrame = currentFrame;
+            m.lastX = m.x;
+            m.lastY = m.y;
+            m.moveCooldown = 0;
+            m.chasing = false;
+            m.targetPlayer = null;
+          } else {
+            const allWalkable = [];
+            for (let y = 1; y < ROWS-1; y++) {
+              for (let x = 1; x < COLS-1; x++) {
+                if (maze[y][x] === 0) allWalkable.push({ x, y });
+              }
+            }
+            if (allWalkable.length) {
+              const randomCell = allWalkable[Math.floor(Math.random() * allWalkable.length)];
+              m.x = randomCell.x;
+              m.y = randomCell.y;
+              m.lastMoveFrame = currentFrame;
+              m.lastX = m.x;
+              m.lastY = m.y;
+              m.moveCooldown = 0;
+              m.chasing = false;
+              m.targetPlayer = null;
+            }
+          }
+        }
+      } else {
+        m.moveCooldown = 0;
+        m.lastMoveFrame = currentFrame;
+        m.lastX = m.x;
+        m.lastY = m.y;
       }
     }
   }
 
-  // ---- GAME STATE (escape & deaths)
+  function getRandomAdjacentWalkable(x, y) {
+    const dirs = [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+    const valid = [];
+    for (let [dx, dy] of dirs) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && maze[ny][nx] === 0) {
+        valid.push({ x: nx, y: ny });
+      }
+    }
+    if (valid.length === 0) return null;
+    return valid[Math.floor(Math.random() * valid.length)];
+  }
+
   function handleEscapesAndDeaths() {
     if (!gameRunning || countdownActive) return;
-    // escapes
     for (let p of players) {
       if (!p.escaped && p.alive && p.x === exitPos.x && p.y === exitPos.y) {
         p.escaped = true;
@@ -493,6 +687,7 @@
           m.pauseEndTime = now + 4000;
           m.chasing = false;
           m.targetPlayer = null;
+          m.moveCooldown = 0;
           setTimeout(() => {
             if (gameRunning && !countdownActive) statusDiv.innerText = "ESCAPE OR BE EATEN";
           }, 1500);
@@ -522,7 +717,6 @@
     }
   }
   
-  // ---- DRAWING with countdown overlay
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
@@ -537,12 +731,18 @@
       }
     }
     
-    ctx.fillStyle = "#2d8f4a";
-    ctx.fillRect(exitPos.x * TILE, exitPos.y * TILE, TILE, TILE);
-    ctx.fillStyle = "#6fef8a";
-    ctx.fillRect(exitPos.x * TILE + 6, exitPos.y * TILE + 6, TILE - 12, TILE - 12);
-    ctx.fillStyle = "#c6ffb0";
-    ctx.fillRect(exitPos.x * TILE + 12, exitPos.y * TILE + 12, TILE - 24, TILE - 24);
+    const exitX = exitPos.x * TILE;
+    const exitY = exitPos.y * TILE;
+    if (exitImg.complete && exitImg.naturalWidth > 0 && exitLoaded) {
+      ctx.drawImage(exitImg, exitX, exitY, TILE, TILE);
+    } else {
+      ctx.fillStyle = "#2d8f4a";
+      ctx.fillRect(exitX, exitY, TILE, TILE);
+      ctx.fillStyle = "#6fef8a";
+      ctx.fillRect(exitX + 6, exitY + 6, TILE - 12, TILE - 12);
+      ctx.fillStyle = "#c6ffb0";
+      ctx.fillRect(exitX + 12, exitY + 12, TILE - 24, TILE - 24);
+    }
     
     for (let m of minotaurs) {
       const img = (m.id === 0) ? minotaurImg1 : minotaurImg2;
@@ -636,7 +836,6 @@
     };
   }
   
-  // ---- COUNTDOWN MANAGEMENT
   function startCountdown() {
     if (countdownInterval) clearInterval(countdownInterval);
     countdownActive = true;
@@ -657,18 +856,17 @@
     }, 1000);
   }
   
-  // ---- GAME INITIALIZATION (setup but not active)
   function resetGame() {
-    if (endSoundTimeout) {
-      clearTimeout(endSoundTimeout);
-      endSoundTimeout = null;
-    }
+    if (endSoundTimeout) clearTimeout(endSoundTimeout);
     if (countdownInterval) clearInterval(countdownInterval);
     countdownActive = false;
     countdownInterval = null;
     gameRunning = false;
     
-    maze = generateMazeWithConnectivity();
+    const { maze: newMaze, exitX, exitY } = generateMazeWithRandomExit();
+    maze = newMaze;
+    exitPos = { x: exitX, y: exitY };
+    
     players = [
       { x: 1, y: 1, color: "#3efff0", colorName: "Wren", alive: true, escaped: false },
       { x: COLS-2, y: 1, color: "#f5e56b", colorName: "Luke", alive: true, escaped: false },
@@ -677,9 +875,8 @@
     ];
     const startCoords = [[1,1], [COLS-2,1], [1,ROWS-2], [COLS-3, ROWS-2]];
     for (let [sx, sy] of startCoords) {
-      if (maze[sy] && maze[sy][sx] === 1) maze[sy][sx] = 0;
+      if (maze[sy][sx] === 1) maze[sy][sx] = 0;
     }
-    if (maze[exitPos.y][exitPos.x] === 1) maze[exitPos.y][exitPos.x] = 0;
     
     const midX = Math.floor(COLS/2);
     const midY = Math.floor(ROWS/2);
@@ -708,7 +905,7 @@
     gameRunning = true;
     statusDiv.innerText = "START IN 5 SECONDS";
     playSound(soundStart);
-    startBackgroundMusic(); // start background music on game start
+    startBackgroundMusic();
     startCountdown();
   }
   
@@ -718,20 +915,17 @@
       gameRunning = true;
       statusDiv.innerText = "START IN 5 SECONDS";
       playSound(soundStart);
-      restartBackgroundMusic(); // restart background music on restart
+      startBackgroundMusic();
       startCountdown();
     } else {
       startGame();
     }
   }
   
-  // Fullscreen
   const fullscreenBtn = document.getElementById("fullscreenBtn");
   function toggleFullscreen() {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.warn(`Fullscreen error: ${err.message}`);
-      });
+      document.documentElement.requestFullscreen().catch(err => console.warn(err));
     } else {
       document.exitFullscreen();
     }
@@ -741,6 +935,7 @@
   function handleKey(e) {
     const key = e.key;
     const action = keyActions[key];
+    if (e.repeat) return;
     if (action && gameRunning && !countdownActive) {
       e.preventDefault();
       tryMovePlayer(action.pid, action.dx, action.dy);
@@ -749,6 +944,21 @@
       e.preventDefault();
     }
   }
+  
+  // Virtual pad handlers
+  const dpadButtons = document.querySelectorAll('.dpad-btn');
+  dpadButtons.forEach(btn => {
+    const dx = parseInt(btn.getAttribute('data-dx'));
+    const dy = parseInt(btn.getAttribute('data-dy'));
+    const handleMove = (e) => {
+      e.preventDefault();
+      if (gameRunning && !countdownActive) {
+        tryMovePlayer(1, dx, dy); // Player 2 is index 1
+      }
+    };
+    btn.addEventListener('mousedown', handleMove);
+    btn.addEventListener('touchstart', handleMove, { passive: false });
+  });
   
   function gameLoop() {
     if (gameRunning && !countdownActive) {
